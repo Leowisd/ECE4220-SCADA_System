@@ -77,7 +77,7 @@
 
 
 #define MSG_SIZE 40
-#define CDEV_NAME "Benjarit"	// "YourDevName"
+#define CDEV_NAME "RTU_Kernal"	// "YourDevName"
 
 MODULE_LICENSE("GPL");
 
@@ -185,7 +185,7 @@ int cdev_module_init(void)
      		printk("Registering the character device failed with %d\n", major);
 	     	return major;
 	}
-	printk("Lab6_cdev_kmod example, assigned major: %d\n", major);
+	printk("RTUs_cdev_kmod, assigned major: %d\n", major);
 	printk("Create Char Device (node) with: sudo mknod /dev/%s c %d 0\n", CDEV_NAME, major);
  	return 0;
 }
