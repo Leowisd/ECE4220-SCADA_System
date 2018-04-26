@@ -1,14 +1,21 @@
-/* Lab6_cdev_kmod.c
- * ECE4220/7220
- * Based on code from: https://github.com/blue119/kernel_user_space_interfaces_example/blob/master/cdev.c
- * Modified and commented by: Luis Alberto Rivera
-
+/*
+	Final Project Kernal space:
+		* Message: (light#)(ON/OFF(!/@))
+		* light# representation: 1 = Red , 2 = Yellow , 3 = Green
+		* To turn on a light the message must be "(light#)@"
+		* To turn off a light the message must be "(light#)!"
+		* Message is recieved from User space(RTUs)
+ */
+ 
+ 
+ /*
  You can compile the module using the Makefile provided. Just add
  obj-m += Lab6_cdev_kmod.o
 
  This Kernel module prints its "MajorNumber" to the system log. The "MinorNumber"
  can be chosen to be 0.
 
+ 
  -----------------------------------------------------------------------------------
  Broadly speaking: The Major Number refers to a type of device/driver, and the
  Minor Number specifies a particular device of that type or sometimes the operation
@@ -75,32 +82,21 @@
 MODULE_LICENSE("GPL");
 
 
-int mydev_id;	// variable needed to identify the handler
-
-unsigned long *GPFSEL, *GPSET, *GPCLR, * GPEDS, * GPAREN, * GPPUD, * GPPUDCLK;
+unsigned long *GPFSEL, *GPSET, *GPCLR;
 static int major;
+char lightNum,value;
 static char msg[MSG_SIZE], send_msg[MSG_SIZE];
-int sem = 0;
-unsigned long period = 1272; //Interval for HRTIMER.
-static struct task_struct *kthread1;
-// Function called when the user space program reads the character device.
-// Some arguments not used here.
-// buffer: data will be placed there, so it can go to user space
-// The global variable msg is used. Whatever is in that string will be sent to userspace.
-// Notice that the variable may be changed anywhere in the module...
+
+
 static ssize_t device_read(struct file *filp, char __user *buffer, size_t length, loff_t *offset)
 {
 	// Whatever is in msg will be placed into buffer, which will be copied into user space
-	if(sem){
-		printk("Send this note to User space: %s\n", send_msg);
 		ssize_t dummy = copy_to_user(buffer, send_msg, length);	// dummy will be 0 if successful
 		printk("Send this note to User space: %s\n", send_msg);
 		// msg should be protected (e.g. semaphore). Not implemented here, but you can add it.
 		send_msg[0] = '\0';	// "Clear" the message, in case the device is read again.
 					// This way, the same message will not be read twice.
 					// Also convenient for checking if there is nothing new, in user space.
-		sem--;
-	}
 
 	return length;
 }
@@ -129,22 +125,37 @@ static ssize_t device_write(struct file *filp, const char __user *buff, size_t l
 
 	// You may want to remove the following printk in your final version.
 	printk("Message from user space: %s\n", msg);
-
-	if(msg[1] == 'A'){
-		period = 550;
-		printk("Period is set to: %lu\n", period);
-	}else if(msg[1] == 'B'){
-		period = 435;
-		printk("Period is set to: %lu\n", period);
-	}else if(msg[1] == 'C'){
-		period = 435;
-		printk("Period is set to: %lu\n", period);
-	}else if(msg[1] == 'D'){
-		period = 310;
-		printk("Period is set to: %lu\n", period);
-	}else if(msg[1] == 'E'){
-		period = 250;
-		printk("Period is set to: %lu\n", period);
+	
+	
+	lightNum = msg[0];
+	value = msg[1];
+	
+	// Red
+	if(lightNum == '1'){
+		if(value == '@'){
+			*GPSET = *GPSET | 0x04;
+		}
+		else if(value == '!'){
+			*GPCLR = *GPCLR | 0x04;
+		}
+	}
+	//Yellow
+	else if(lightNum == '2'){
+		if(value == '@'){
+			*GPSET = *GPSET | 0x08; 
+		}
+		else if(value == '!'){
+			*GPCLR = *GPCLR | 0x04;
+		}
+	}
+	//Green
+	else if(lightNum == '3'){
+		if(value == '@'){
+			*GPSET = *GPSET | 0x10; 
+		}
+		else if(value == '!'){
+			*GPCLR = *GPCLR | 0x04;
+		}
 	}
 
 	return len;		// the number of bytes that were written to the Character Device.
@@ -157,157 +168,16 @@ static struct file_operations fops = {
 	.write = device_write,
 };
 
-static irqreturn_t button_isr(int irq, void *dev_id)
-{
-	// In general, you want to disable the interrupt while handling it.
-	disable_irq_nosync(79);
-
-	// This same handler will be called regardless of what button was pushed,
-	// assuming that they were properly configured.
-	// How can you determine which button was the one actually pushed?
-
-	// DO STUFF (whatever you need to do, based on the button that was pushed)
-	if(*GPEDS & 0x10000){
-		printk("PB1 was pressed\n");
-		period = 550;
-		strcpy(send_msg,"@A");
-		printk("Period is senttt: %s\n", send_msg);
-		sem++;
-	}else if(*GPEDS & 0x20000){
-		printk("PB2 was pressed\n");
-		period = 435;
-		strcpy(send_msg,"@B");
-		printk("Period is senttt: %s\n", send_msg);
-		sem++;
-	}else if(*GPEDS & 0x40000){
-		printk("PB3 was pressed\n");
-		period = 370;
-		strcpy(send_msg,"@C");
-		printk("Period is senttt: %s\n", send_msg);
-		sem++;
-	}else if(*GPEDS & 0x80000){
-		printk("PB4 was pressed\n");
-		period = 310;
-		strcpy(send_msg,"@D");
-		printk("Period is senttt: %s\n", send_msg);
-		sem++;
-	}else if(*GPEDS & 0x100000){
-		printk("PB5 was pressed\n");
-		period = 250;
-		strcpy(send_msg,"@E");
-		printk("Period is senttt: %s\n", send_msg);
-		sem++;
-	}
-	// IMPORTANT: Clear the Event Detect status register before leaving.
-	// The bit is cleared by writing a “1” to the relevant bit.
-	*GPEDS = 0xFFFFFFFF;
-	printk("Interrupt handled\n");
-	enable_irq(79);		// re-enable interrupt
-
-    return IRQ_HANDLED;
-}
-int kthread_fn(void *ptr){
-  unsigned long j0, j1;
-  int toggle = 0;
-
-  j0 = jiffies; //Number of clock ticks since the system started.
-  j1 = j0 + 2*HZ; //Not sure what this one is
-
-  while(time_before(jiffies, j1)){
-    schedule();
-  }
-
-  while(1){
-    //Check if the thread should be stopped
-    if(kthread_should_stop()) {
-			do_exit(0);
-	}
-//    usleep_range(period, period); //Not sure how this will work with a tight range
-//    //usleep_range(1000000, 1100000); //Test values
-//    if((toggle % 2) == 0)
-//	{
-//		*GPSET |= 0x40;
-//		toggle++;
-//	}
-//	//Clear the pin
-//	else
-//	{
-//		*GPCLR |= 0x40;
-//		toggle--;
-//	}
-    *GPSET |= 0x40;
-    udelay(period);
-    *GPCLR |= 0x40;
-    udelay(period);
-  }
-
-  return(0);
-}
 int cdev_module_init(void)
 {
-
-	char kthread_name[11]="my_kthread";
-	int dummy = 0;
+	
 	GPFSEL = (unsigned long *)ioremap(0x3F200000,4096);
-	// Set Speaker as output
-	*GPFSEL = *GPFSEL | 0x40000;
+	// Set light Red,Yellow,Green as output
+	*GPFSEL = *GPFSEL | 0x1240;
 	// Set register
 	GPSET = GPFSEL + (0x1c/4);
 	// Clear register
 	GPCLR = GPFSEL + (0x28/4);
-	// Event Detect Status
-	GPEDS = GPFSEL + (0x40/4);
-	// GPIO Async
-	GPAREN = GPFSEL + (0x4c/4);
-	// Pullup/Pulldown enable
-	GPPUD = GPFSEL + (0x94/4);
-	// Clock for Pullup/Pulldown configuration
-	GPPUDCLK = GPFSEL + (0x98/4);
-
-
-
-	// Move over one register
-	GPFSEL = GPFSEL + (0x04/4);
-	// PB1, PB2, PB3, PB4
-	*GPFSEL = *GPFSEL & 0xC003FFFF;
-	// Move over one moore register
-	GPFSEL = GPFSEL + (0x04/4);
-	// PB5
-	*GPFSEL = *GPFSEL & 0xFFFFFFF8;
-
-	// Map GPIO registers
-	// Remember to map the base address (beginning of a memory page)
-	// Then you can offset to the addresses of the other registers
-	*GPPUD |= 0x1;	//0b01
-	udelay(100);
-	*GPPUDCLK |= 0x1F0000;
-	udelay(100);
-	*GPPUD &= 0x0;
-	udelay(100);
-	*GPPUDCLK &= 0x0;
-	// Enable (Async) Rising Edge detection for all 5 GPIO ports.
-	*GPAREN |= 0x1F0000;
-	// Don't forget to configure all ports connected to the push buttons as inputs.
-
-	// You need to configure the pull-downs for all those ports. There is
-	// a specific sequence that needs to be followed to configure those pull-downs.
-	// The sequence is described on page 101 of the BCM2835-ARM-Peripherals manual.
-	// You can use  udelay(100);  for those 150 cycles mentioned in the manual.
-	// It's not exactly 150 cycles, but it gives the necessary delay.
-	// WiringPi makes it a lot simpler in user space, but it's good to know
-	// how to do this "by hand".
-
-	// Enable (Async) Rising Edge detection for all 5 GPIO ports.
-
-	// Request the interrupt / attach handler (line 79, doesn't match the manual...)
-	// The third argument string can be different (you give the name)
-	dummy = request_irq(79, button_isr, IRQF_SHARED, "Button_handler", &mydev_id);
-	kthread1 = kthread_create(kthread_fn, NULL, kthread_name);
-
-	if((kthread1)){
-	  wake_up_process(kthread1);
-	}
-	printk("Button Detection enabled.\n");
 
 	// register the Characted Device and obtain the major (assigned by the system)
 	major = register_chrdev(0, CDEV_NAME, &fops);
@@ -322,19 +192,7 @@ int cdev_module_init(void)
 
 void cdev_module_exit(void)
 {
-
-	// Good idea to clear the Event Detect status register here, just in case.
-	// The bit is cleared by writing a “1” to the relevant bit.
-	*GPEDS |= 0xFFFFFFFF;
-	// Disable (Async) Rising Edge detection for all 5 GPIO ports.
-	*GPAREN |= 0x0;
-	// Remove the interrupt handler; you need to provide the same identifier
-    free_irq(79, &mydev_id);
-	if(!kthread_stop(kthread1)){
-      printk("Musical_keyboard Kthread has stopped\n");
-    }
-	printk("Button Detection disabled.\n");
-
+	iounmap(GPFSEL);
 	// Once unregistered, the Character Device won't be able to be accessed,
 	// even if the file /dev/YourDevName still exists. Give that a try...
 	unregister_chrdev(major, CDEV_NAME);
