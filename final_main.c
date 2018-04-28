@@ -5,6 +5,7 @@
 #include <stdint.h>	
 #include <wiringPi.h>
 #include <wiringPiSPI.h>
+#include <wiringSerial.h>
 
 #include <sys/time.h>
 #include <sys/types.h>
@@ -19,6 +20,7 @@
 #include <fcntl.h>
 #include <pthread.h>  
 #include <semaphore.h>
+#include <errno.h>
 
 #define MSG_SIZE 50
 
@@ -35,6 +37,8 @@
 #define SPI_SPEED 	2000000	// Max speed is 3.6 MHz when VDD = 5 V
 #define ADC_CHANNEL       1	// Between 0 and 3
 
+#define CHAR_DEV "/dev/Final"
+
 
 //RTU infomation
 int RTUNum;
@@ -45,6 +49,7 @@ float ADCValue;
 int preSwitch1, preSwitch2;
 int preButton1, preButton2;
 int preLED1, preLED2, preLED3;
+int buttonOneFlag, buttonTwoFlag;
 
 //socket arguments
 int sock, length, n, num;
@@ -52,6 +57,11 @@ int boolval = 1;			// for a socket option
 socklen_t fromlen;
 struct sockaddr_in server;
 struct sockaddr_in addr;
+
+//ISR arguments
+unsigned long *EVENT, *PUD, *PUD_CLK, *EDGE;
+unsigned long *BPTR;
+int mydev_id;	// variable needed to identify the handler
 
 uint16_t get_ADC(int channel);	// prototype
 time_t timep; //time record
@@ -72,11 +82,12 @@ uint16_t get_ADC(int ADC_chan)
 	spiData[1] = 0b10000000 | (ADC_chan << 4);
 												
 	spiData[2] = 0;	
-srand(time(NULL));
+    srand(time(NULL));
 	wiringPiSPIDataRW(SPI_CHANNEL, spiData, 3);
 	
 	return ((spiData[1] << 8) | spiData[2]);
 }
+
 
 void getTime()
 {
@@ -154,8 +165,56 @@ void getADCValue()
     return;
 }
 
+void getADCValueUSB()
+{
+    int fd;
+	if ((fd = serialOpen("/dev/ttyACM0",9600))<0)
+	{
+		fprintf(stderr, "Unable to open serial device: %s\n", strerror(errno));
+		return;
+	}
+    
+    char temp[MSG_SIZE]="";
+    char ch[MSG_SIZE]="";
+    int i=0;
+    while(1)
+	{
+        ch[0]=serialGetchar(fd);
+	if (ch[0] == '\n' ) break;
+        if (i>11) strcat(temp, ch);				
+		i++;
+	}
+
+    ADCValue=atof(temp);
+    sprintf(buffer2, "%s %f", "ADC Value: ", ADCValue);
+}
+void* readFromKernal(void *arg)
+{
+    printf("readFromKernal Thread begin.\n");
+    char buf[MSG_SIZE];
+    while(1)
+    {
+        bzero(buf, MSG_SIZE);
+        n = read(mydev_id, buf, sizeof(buf));
+        if(n != sizeof(buf)) 
+        {
+            printf("Read failed, leaving...\n");
+            break;
+        }
+        if (strcmp(buf, "button1") == 0)
+        {
+            buttonOneFlag = 1;
+        }
+        else if (strcmp(buf, "button2") == 0)
+        {
+            buttonTwoFlag = 1;
+        }
+    }
+    pthread_exit(0);
+}
 void* periodicUpdate(void *arg)
 {
+    printf("Periodic Update thread begin.\n");
     while(1)
     {
             /******Check Status******/
@@ -187,22 +246,22 @@ void* periodicUpdate(void *arg)
             bzero(buffer2, MSG_SIZE);
             getLED();
             n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);
-            //bzero(buffer2, MSG_SIZE);
+            bzero(buffer2, MSG_SIZE);
             //getADCValue();
-            //n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);
+            getADCValueUSB();
+            n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);
 
             //if some events happend
-            if (ADCValue>2 || ADCValue<1)
-            {
-                bzero(buffer2, MSG_SIZE);
-                strcpy(buffer2, "Event: Overload!");
-                n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);
-            }
-
-            if (ADCValue == -1)
+            if (ADCValue == 0)
             {
                 bzero(buffer2, MSG_SIZE);
                 strcpy(buffer2, "Event: No Power!");
+                n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);
+            }            
+            else if (ADCValue>2 || ADCValue<1)
+            {
+                bzero(buffer2, MSG_SIZE);
+                strcpy(buffer2, "Event: Overload!");
                 n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);
             }
 
@@ -222,20 +281,20 @@ void* periodicUpdate(void *arg)
                 preSwitch2 = switch2;          
             }
 
-            if (preButton1 != button1)
+            if (buttonOneFlag == 1)
             {
                 bzero(buffer2, MSG_SIZE);
-                strcpy(buffer2, "Event: Button 1 Change!");
+                strcpy(buffer2, "Event: Button 1 Pressed!");
                 n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);          
-                preButton1 = button1;
+                buttonOneFlag = 0;
             }
 
-            if (preButton2 != button2)
+            if (buttonTwoFlag == 1)
             {
                 bzero(buffer2, MSG_SIZE);
-                strcpy(buffer2, "Event: Button 2 Change!");
+                strcpy(buffer2, "Event: Button 2 Pressed!");
                 n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);          
-                preButton2 = button2;
+                buttonTwoFlag = 0;
             }
 
             if (preLED1 != LED1)
@@ -261,7 +320,7 @@ void* periodicUpdate(void *arg)
                 n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);          
                 preLED3 = LED3;
             }
-	     bzero(buffer2, MSG_SIZE);
+	         bzero(buffer2, MSG_SIZE);
              strcpy(buffer2, "RTU 1 finished\n");
              n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);          
             /**********************************/
@@ -281,7 +340,9 @@ int main(int argc, char *argv[])
         exit(0);
     }
     /******************************************/
-    
+
+
+ 
     /******Setup******/
     if (wiringPiSetup()<0)
     {
@@ -296,7 +357,9 @@ int main(int argc, char *argv[])
 	}
     /**************************/
 
-    /******Initialization******/
+
+
+    /******WiringPi Initialization******/
     pinMode(S1, INPUT); //awitch 1 as input
     pinMode(S2, INPUT); //switch 2 as input
 
@@ -325,7 +388,17 @@ int main(int argc, char *argv[])
     preLED3=0;
     preSwitch1=0;
     preSwitch2=0;
+    buttonOneFlag=0;
+    buttonTwoFlag=0;
     /**************************/
+    
+    /******Open char device******/
+    if ((mydev_id = open(CHAR_DEV, O_RDONLY)) == -1)
+    {
+        printf("Cannot open device%s\n", CHAR_DEV);
+        exit(1); 
+    }
+    /****************************/
 
     /******Socket Connection******/
     sock = socket(AF_INET, SOCK_DGRAM, 0); // Creates socket. Connectionless.
@@ -354,10 +427,14 @@ int main(int argc, char *argv[])
     /*****************************/
 
 
+
     /******Thread to send current RTU logs******/
-    pthread_t ptr;
+    pthread_t ptr,ptr2;
     pthread_create(&ptr, NULL, periodicUpdate, NULL);
+    pthread_create(&ptr2, NULL, readFromKernal, NULL);
     /*******************************************/
+
+
 
     /******Receive commands******/
     while(1)
