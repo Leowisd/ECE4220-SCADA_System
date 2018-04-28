@@ -1,5 +1,4 @@
-#include <iostream>
-#include <string>
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -24,13 +23,13 @@
 #define MSG_SIZE 50
 
 //PIN
-#define BTN1 27;
-#define BTN2 0;
-#define S1 26;
-#define S2 23;
-#define RED 8;
-#define YELLOW 9;
-#define GREEN 7;
+#define BTN1 27
+#define BTN2 0
+#define S1 26
+#define S2 23
+#define RED 8
+#define YELLOW 9
+#define GREEN 7
 
 #define SPI_CHANNEL	      0	// 0 or 1
 #define SPI_SPEED 	2000000	// Max speed is 3.6 MHz when VDD = 5 V
@@ -58,7 +57,7 @@ uint16_t get_ADC(int channel);	// prototype
 time_t timep; //time record
 char buffer[MSG_SIZE]; //to store reveived command
 char buffer2[MSG_SIZE]; //to store sent status
-
+sem_t my_sem;
 
 void error(const char *msg)
 {
@@ -73,7 +72,7 @@ uint16_t get_ADC(int ADC_chan)
 	spiData[1] = 0b10000000 | (ADC_chan << 4);
 												
 	spiData[2] = 0;	
-
+srand(time(NULL));
 	wiringPiSPIDataRW(SPI_CHANNEL, spiData, 3);
 	
 	return ((spiData[1] << 8) | spiData[2]);
@@ -81,27 +80,30 @@ uint16_t get_ADC(int ADC_chan)
 
 void getTime()
 {
-    strcpy(buffer2, "RTU1:\n");  //or RTU2
+    strcpy(buffer2, "RTU1:  ");  //or RTU2
 
     time(&timep);
-    string s_temp = ctime(&timep);
-    for (int i=11; i<=18; i++)
+    char s_temp[MSG_SIZE],s_temp2[MSG_SIZE]="";
+    strcpy(s_temp, ctime(&timep));
+    int i=11;
+    while(i<=18)
     {
-        buffer2 += s_temp[i];
+        s_temp2[i-11]=s_temp[i];
+        i++;
     }
-
+    strcat(buffer2, s_temp2);
     return;
 }
 
 void getSwitch()
 {
     strcpy(buffer2, "Switch 1: ");
-    if (switch1 == 1) buffer2 += "ON\n";
-    else buffer2 += "OFF\n";
+    if (switch1 == 1) strcat(buffer2, "ON  ");
+    else strcat(buffer2, "OFF  ");
 
-    buffer2 += "Switch 2: ";
-    if (switch2 == 1) buffer2 += "ON\n";
-    else buffer2 += "OFF\n";
+    strcat(buffer2, "Switch 2: ");
+    if (switch2 == 1) strcat(buffer2, "ON");
+    else strcat(buffer2, "OFF");
 
     return;
 }
@@ -109,12 +111,12 @@ void getSwitch()
 void getButton()
 {
     strcpy(buffer2, "Button 1: ");
-    if (button1 == 1) buffer2 += "ON\n";
-    else buffer2 += "OFF\n";
+    if (button1 == 1) strcat(buffer2, "ON ");
+    else strcat(buffer2, "OFF  ");
 
-    buffer2 += "Button 2: ";
-    if (button2 == 1) buffer2 += "ON\n";
-    else buffer2 += "OFF\n";
+    strcat(buffer2, "Button 2: ");
+    if (button2 == 1) strcat(buffer2, "ON");
+    else strcat(buffer2, "OFF");
 
     return;
 }
@@ -122,16 +124,16 @@ void getButton()
 void getLED()
 {
     strcpy(buffer2, "LED 1: ");
-    if (LED1 == 1) buffer2 += "ON\n";
-    else buffer2 += "OFF\n";
+    if (LED1 == 1) strcat(buffer2, "ON  ");
+    else strcat(buffer2, "OFF  ");
 
-    buffer2 += "LED 2: ";
-    if (LED2 == 1) buffer2 += "ON\n";
-    else buffer2 += "OFF\n";
+    strcat(buffer2, "LED 2: ");
+    if (LED2 == 1) strcat(buffer2, "ON  ");
+    else strcat(buffer2, "OFF  ");
 
-    buffer2 += "LED 3: ";
-    if (LED3 == 1) buffer2 += "ON\n";
-    else buffer2 += "OFF\n";
+    strcat(buffer2, "LED 3: ");
+    if (LED3 == 1) strcat(buffer2, "ON");
+    else strcat(buffer2, "OFF");
 
     return;
 }
@@ -146,8 +148,8 @@ void getADCValue()
     //ADCValue = ((3.300/1023)*ADCvalue)/2.0;
     char temp[MSG_SIZE];
     sprintf(temp, "%f", ADCValue);
-    buffer2 += temp;
-    buffer2 += "\n";
+    strcat(buffer2, temp);
+    strcat(buffer2, "\n");
 
     return;
 }
@@ -185,29 +187,29 @@ void* periodicUpdate(void *arg)
             bzero(buffer2, MSG_SIZE);
             getLED();
             n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);
-            bzero(buffer2, MSG_SIZE);
-            getADCValue();
-            n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);
+            //bzero(buffer2, MSG_SIZE);
+            //getADCValue();
+            //n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);
 
             //if some events happend
             if (ADCValue>2 || ADCValue<1)
             {
                 bzero(buffer2, MSG_SIZE);
-                strcpy(buffer2, "Overload!\n");
+                strcpy(buffer2, "Event: Overload!");
                 n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);
             }
 
             if (ADCValue == -1)
             {
                 bzero(buffer2, MSG_SIZE);
-                strcpy(buffer2, "No Power!\n");
+                strcpy(buffer2, "Event: No Power!");
                 n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);
             }
 
             if (preSwitch1 != switch1)
             {
                 bzero(buffer2, MSG_SIZE);
-                strcpy(buffer2, "Switch 1 Change!\n");
+                strcpy(buffer2, "Event: Switch 1 Change!");
                 n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);
                 preSwitch1 = switch1;          
             }
@@ -215,7 +217,7 @@ void* periodicUpdate(void *arg)
             if (preSwitch2 != switch2)
             {
                 bzero(buffer2, MSG_SIZE);
-                strcpy(buffer2, "Switch 2 Change!\n");
+                strcpy(buffer2, "Event: Switch 2 Change!");
                 n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);
                 preSwitch2 = switch2;          
             }
@@ -223,7 +225,7 @@ void* periodicUpdate(void *arg)
             if (preButton1 != button1)
             {
                 bzero(buffer2, MSG_SIZE);
-                strcpy(buffer2, "LED 1 Change!\n");
+                strcpy(buffer2, "Event: Button 1 Change!");
                 n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);          
                 preButton1 = button1;
             }
@@ -231,7 +233,7 @@ void* periodicUpdate(void *arg)
             if (preButton2 != button2)
             {
                 bzero(buffer2, MSG_SIZE);
-                strcpy(buffer2, "Button 2 Change!\n");
+                strcpy(buffer2, "Event: Button 2 Change!");
                 n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);          
                 preButton2 = button2;
             }
@@ -239,7 +241,7 @@ void* periodicUpdate(void *arg)
             if (preLED1 != LED1)
             {
                 bzero(buffer2, MSG_SIZE);
-                strcpy(buffer2, "LED 1 Change!\n");
+                strcpy(buffer2, "Event: LED 1 Change!");
                 n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);          
                 preLED1 = LED1;
             }
@@ -247,7 +249,7 @@ void* periodicUpdate(void *arg)
             if (preLED2 != LED2)
             {
                 bzero(buffer2, MSG_SIZE);
-                strcpy(buffer2, "LED 2 Change!\n");
+                strcpy(buffer2, "Event: LED 2 Change!\n");
                 n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);          
                 preLED2 = LED2;
             }
@@ -255,10 +257,13 @@ void* periodicUpdate(void *arg)
             if (preLED3 != LED3)
             {
                 bzero(buffer2, MSG_SIZE);
-                strcpy(buffer2, "LED 3 Change!\n");
+                strcpy(buffer2, "Event: LED 3 Change!");
                 n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);          
                 preLED3 = LED3;
             }
+	     bzero(buffer2, MSG_SIZE);
+             strcpy(buffer2, "RTU 1 finished\n");
+             n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);          
             /**********************************/
 
             sleep(1);
@@ -299,13 +304,13 @@ int main(int argc, char *argv[])
     pinMode(BTN2, INPUT); //button 2 as input
 
     pinMode(RED, OUTPUT);   //red LED as output
-    pinMOde(YELLOW, OUTPUT);    //yellow LED as output
+    pinMode(YELLOW, OUTPUT);    //yellow LED as output
     pinMode(GREEN, OUTPUT); //green LED as output
 
     pullUpDnControl(S1, PUD_DOWN);
     pullUpDnControl(S2, PUD_DOWN);
-    pullUpDNControl(BTN1, PUD_DOWN);
-    pullUpDNControl(BTN1, PUD_DOWN);
+    pullUpDnControl(BTN1, PUD_DOWN);
+    pullUpDnControl(BTN1, PUD_DOWN);
 
     digitalWrite(RED, 0);
     digitalWrite(YELLOW, 0);
