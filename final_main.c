@@ -50,7 +50,7 @@ int RTUNum;
 int switch1, switch2;
 int button1, button2;
 int LED1, LED2, LED3;
-float ADCValue;
+float ADCValue=0;
 int preSwitch1, preSwitch2;
 int preButton1, preButton2;
 int preLED1, preLED2, preLED3;
@@ -191,7 +191,7 @@ void getADCValueUSB()
 	}
 
     ADCValue=atof(temp);
-    sprintf(buffer2, "%s %f", "ADC Value: ", ADCValue);
+    sprintf(buffer2, "%s %.2f", "ADC Value: ", ADCValue);
 }
 void* readFromKernal(void *arg)
 {
@@ -433,7 +433,7 @@ int main(int argc, char *argv[])
     pinMode(B, OUTPUT);
     pinMode(C, OUTPUT);
     pinMode(D, OUTPUT);
-    pinMode(SEVENABLE, 1);
+    digitalWrite(SEVENABLE, 1);
 
     sem_init(&my_sem, 0, 1); //init semaphore
 
@@ -446,6 +446,11 @@ int main(int argc, char *argv[])
     preSwitch2=0;
     buttonOneFlag=0;
     buttonTwoFlag=0;
+
+    digitalWrite(A, 0);
+    digitalWrite(B, 0);
+    digitalWrite(C, 0);
+    digitalWrite(D, 0);
     /**************************/
     
     /******Open char device******/
