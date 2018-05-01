@@ -32,6 +32,11 @@
 #define RED 8
 #define YELLOW 9
 #define GREEN 7
+#define SEVENABLE 29
+#define A 5
+#define B 6
+#define C 25
+#define D 2
 
 #define SPI_CHANNEL	      0	// 0 or 1
 #define SPI_SPEED 	2000000	// Max speed is 3.6 MHz when VDD = 5 V
@@ -257,12 +262,20 @@ void* periodicUpdate(void *arg)
                 bzero(buffer2, MSG_SIZE);
                 strcpy(buffer2, "Event: No Power!");
                 n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);
+                digitalWrite(A, 0);
+                digitalWrite(B, 0);
+                digitalWrite(C, 0);
+                digitalWrite(D, 0);
             }            
             else if (ADCValue>2 || ADCValue<1)
             {
                 bzero(buffer2, MSG_SIZE);
                 strcpy(buffer2, "Event: Overload!");
                 n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);
+                digitalWrite(A, 1);
+                digitalWrite(B, 0);
+                digitalWrite(C, 0);
+                digitalWrite(D, 0);
             }
 
             if (preSwitch1 != switch1)
@@ -271,6 +284,11 @@ void* periodicUpdate(void *arg)
                 strcpy(buffer2, "Event: Switch 1 Change!");
                 n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);
                 preSwitch1 = switch1;          
+                digitalWrite(A, 0);
+                digitalWrite(B, 1);
+                digitalWrite(C, 0);
+                digitalWrite(D, 0);
+
             }
 
             if (preSwitch2 != switch2)
@@ -278,7 +296,12 @@ void* periodicUpdate(void *arg)
                 bzero(buffer2, MSG_SIZE);
                 strcpy(buffer2, "Event: Switch 2 Change!");
                 n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);
-                preSwitch2 = switch2;          
+                preSwitch2 = switch2;   
+                digitalWrite(A, 1);
+                digitalWrite(B, 1);
+                digitalWrite(C, 0);
+                digitalWrite(D, 0);
+       
             }
 
             if (buttonOneFlag == 1)
@@ -287,6 +310,11 @@ void* periodicUpdate(void *arg)
                 strcpy(buffer2, "Event: Button 1 Pressed!");
                 n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);          
                 buttonOneFlag = 0;
+                digitalWrite(A, 0);
+                digitalWrite(B, 0);
+                digitalWrite(C, 1);
+                digitalWrite(D, 0);
+
             }
 
             if (buttonTwoFlag == 1)
@@ -295,6 +323,11 @@ void* periodicUpdate(void *arg)
                 strcpy(buffer2, "Event: Button 2 Pressed!");
                 n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);          
                 buttonTwoFlag = 0;
+                digitalWrite(A, 1);
+                digitalWrite(B, 0);
+                digitalWrite(C, 1);
+                digitalWrite(D, 0);
+
             }
 
             if (preLED1 != LED1)
@@ -303,6 +336,11 @@ void* periodicUpdate(void *arg)
                 strcpy(buffer2, "Event: LED 1 Change!");
                 n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);          
                 preLED1 = LED1;
+                digitalWrite(A, 0);
+                digitalWrite(B, 1);
+                digitalWrite(C, 1);
+                digitalWrite(D, 0);
+
             }
 
             if (preLED2 != LED2)
@@ -311,6 +349,11 @@ void* periodicUpdate(void *arg)
                 strcpy(buffer2, "Event: LED 2 Change!\n");
                 n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);          
                 preLED2 = LED2;
+                digitalWrite(A, 1);
+                digitalWrite(B, 1);
+                digitalWrite(C, 1);
+                digitalWrite(D, 0);
+
             }
 
             if (preLED3 != LED3)
@@ -319,6 +362,11 @@ void* periodicUpdate(void *arg)
                 strcpy(buffer2, "Event: LED 3 Change!");
                 n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);          
                 preLED3 = LED3;
+                digitalWrite(A, 0);
+                digitalWrite(B, 0);
+                digitalWrite(C, 0);
+                digitalWrite(D, 1);
+
             }
 	         bzero(buffer2, MSG_SIZE);
              strcpy(buffer2, "RTU 1 finished\n");
@@ -378,6 +426,14 @@ int main(int argc, char *argv[])
     digitalWrite(RED, 0);
     digitalWrite(YELLOW, 0);
     digitalWrite(GREEN, 0);
+
+
+    pinMode(SEVENABLE, OUTPUT);
+    pinMode(A, OUTPUT);
+    pinMode(B, OUTPUT);
+    pinMode(C, OUTPUT);
+    pinMode(D, OUTPUT);
+    pinMode(SEVENABLE, 1);
 
     sem_init(&my_sem, 0, 1); //init semaphore
 
