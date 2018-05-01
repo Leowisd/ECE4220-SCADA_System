@@ -96,7 +96,7 @@ void getTime()
     time(&timep);
     char s_temp[MSG_SIZE],s_temp2[MSG_SIZE]="";
     strcpy(s_temp, ctime(&timep));
-    int i=11;
+    int i=11; // we only need 11~18 of the time value
     while(i<=18)
     {
         s_temp2[i-11]=s_temp[i];
@@ -428,11 +428,11 @@ int main(int argc, char *argv[])
 
 
 
-    /******Thread to send current RTU logs******/
+    /******Thread to send current RTU logs and read button from kernal******/
     pthread_t ptr,ptr2;
     pthread_create(&ptr, NULL, periodicUpdate, NULL);
     pthread_create(&ptr2, NULL, readFromKernal, NULL);
-    /*******************************************/
+    /**********************************************************************/
 
 
 
