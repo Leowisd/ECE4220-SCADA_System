@@ -442,7 +442,7 @@ int main(int argc, char *argv[])
     length = sizeof(server);			// length of structure
     bzero(&server,length);			// sets all values to zero. memset() could be used
     server.sin_family = AF_INET;		// symbol constant for Internet domain
-	server.sin_port = htons(atoi(argv[1]));	// port number
+    server.sin_port = htons(atoi(argv[1]));	// port number
     server.sin_addr.s_addr = INADDR_ANY;		// IP address of the machine on which
 										    // the server is running
     
