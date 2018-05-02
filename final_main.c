@@ -63,6 +63,11 @@ socklen_t fromlen;
 struct sockaddr_in server;
 struct sockaddr_in addr;
 
+//IP arguments
+struct ifreq ifr;
+char eth0[] = "wlan0";
+char ip[MSG_SIZE], ipHolder[MSG_SIZE];
+
 //ISR arguments
 unsigned long *EVENT, *PUD, *PUD_CLK, *EDGE;
 unsigned long *BPTR;
@@ -78,6 +83,21 @@ void error(const char *msg)
 {
      perror(msg);
      exit(0);
+}
+
+int parseIP(char* IP)
+{
+    char *saveptr;
+    char* temp = strtok_r(IP, ".", &saveptr);
+    int i = 1, numBoard = 0;
+    while(temp != NULL)
+    {
+        if(i == 4)
+            numBoard = atoi(temp);
+        temp = strtok_r(NULL, ".", &saveptr);
+        i++;
+    }
+    return numBoard;
 }
 
 uint16_t get_ADC(int ADC_chan)
@@ -473,6 +493,24 @@ int main(int argc, char *argv[])
 										    // the server is running
     server.sin_port = htons(atoi(argv[1]));	// port number
 
+    //gets the host name and the IP
+    bzero(&ifr, sizeof(ifr));	// Set all values to zero
+    ifr.ifr_addr.sa_family = AF_INET;	// Type of address to retrieve - IPv4 IP address
+    strncpy((char* )&ifr.ifr_name , eth0 , IFNAMSIZ-1);		// Copy the interface name in the ifreq structure
+	// Get IP address
+    if (ioctl(sock,SIOCGIFADDR,&ifr) == -1) {
+		error("Cannot get IP address");
+		close(sock);
+		exit(0);
+	}
+	// Converts the internet host address in network byte order to a string in IPv4 dotted-decimal notation
+    strcpy(ip,inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr )->sin_addr));
+    strcpy(ipHolder,ip);
+    int current_board_number = parseIP(ipHolder);
+    printf("IP : %s\n",ip);
+    printf("Board Number : %d\n",current_board_number);
+
+
     // binds the socket to the address of the host and the port number
     if (bind(sock, (struct sockaddr *)&server, length) < 0)
         error("binding");
@@ -486,7 +524,6 @@ int main(int argc, char *argv[])
 
     fromlen = sizeof(struct sockaddr_in);	// size of structure
     /*****************************/
-
 
 
     /******Thread to send current RTU logs and read button from kernal******/

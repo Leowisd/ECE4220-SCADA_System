@@ -1,7 +1,3 @@
-
-
-
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -28,7 +24,7 @@ void sendCommand();
 void printHistory();
 
 char buffer[MSG_SIZE],ip[MSG_SIZE],receivedIP[MSG_SIZE], ipHolder[MSG_SIZE];
-char broadcastMSG[MSG_SIZE];
+char commandMSG[MSG_SIZE];
 
 int sock, n, r;
 unsigned int length;
@@ -42,14 +38,7 @@ struct sockaddr_in from; // From the client
 int port_number;
 int flagg = 0;
 struct hostent *hp;
-typedef struct {
-    char* time;
-	char* switchStatus;
-	char* buttonStatus;
-	char* LEDsStatus;
-	char* adcValue;
-	char* event;
-}logList; 
+
 
 int parseIP(char* IP)
 {
@@ -71,12 +60,6 @@ void error(const char *msg)
     perror(msg);
     exit(0);
 }
-
-logList allLogs[1000];
-
-
-void sendCommand();
-void printStatus();
 
 int main(int argc, char *argv[]){
 	int option;
@@ -106,7 +89,28 @@ int main(int argc, char *argv[]){
     server.sin_addr.s_addr= INADDR_ANY; // MY IP address
     server.sin_port = htons(port_number);
 
+
+
+	// gets the host name and the IP
+	bzero(&ifr, sizeof(ifr));	// Set all values to zero
+    ifr.ifr_addr.sa_family = AF_INET;	// Type of address to retrieve - IPv4 IP address
+    strncpy((char* )&ifr.ifr_name , eth0 , IFNAMSIZ-1);		// Copy the interface name in the ifreq structure
+	// Get IP address
+    if (ioctl(sock,SIOCGIFADDR,&ifr) == -1) {
+		error("Cannot get IP address");
+		close(sock);
+		exit(0);
+	}
+	// Converts the internet host address in network byte order to a string in IPv4 dotted-decimal notation
+    strcpy(ip,inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr )->sin_addr));
+    strcpy(ipHolder,ip);
+    int current_board_number = parseIP(ipHolder);
+    printf("IP : %s\n",ip);
+    printf("Board Number : %d\n",current_board_number);
+
     
+
+
     if (bind(sock, (struct sockaddr *)&server, length) < 0){
         printf("binding error dumby\n");
     }
@@ -118,42 +122,21 @@ int main(int argc, char *argv[]){
 	fromlen = sizeof(struct sockaddr_in);
 
 
-	sem_init(&sem, 0, 1);
-
 	//Start the pthreads
 	pthread_create(&reader, NULL, readMessages, NULL);
-	while(1){
-		displayChoice();
-		scanf("%d",&option);
-		switch(option){
-			case 1:
-				sendCommand();
-			case 2:
-				printStatus();
-			case 3:
-				break;
+
+
+	while(1)
+	{
+		bzero(commandMSG, MSG_SIZE);
+		scanf("%s",commandMSG);
+		server.sin_addr.s_addr = inet_addr("128.206.19.255");
+		n = sendto(sock, commandMSG, MSG_SIZE, 0, (const struct sockaddr *)&server,fromlen);
+		if (n<0){
+			error("Sendto");
 		}
 	}
 	return 0;
-}
-
-void displayChoice(){
-	printf("\nHistorian Program options: \n");
-	printf("1)Send a command to the RTUs\n");
-	printf("2)Print the event history since start\n");
-	printf("3)Exit\n");
-}
-
-void printStatus(){
-	
-}
-
-void sendCommand(){
-	bzero(broadcastMSG, MSG_SIZE);
-	printf("Command option:\n LED1ON\n LED2ON \n LED3ON \n LED1OFF\n LED2OFF \n LED3OFF \n Please enter the command:");
-	scanf("%s",broadcastMSG);
-	server.sin_addr.s_addr = inet_addr("128.206.19.255");
-	n = sendto(sock, broadcastMSG, MSG_SIZE, 0, (const struct sockaddr *)&server,fromlen);
 }
 
 void* readMessages(void* agr){
@@ -163,59 +146,10 @@ void* readMessages(void* agr){
 		bzero(&buffer,MSG_SIZE); // clear the buffer to NULL
 		
 		n = recvfrom(sock, buffer, MSG_SIZE, 0, (struct sockaddr *)&from, &fromlen);
-
-		//if(!strncmp(buffer, "LED1ON", 6) || !strncmp(buffer, "LED2ON", 6) || !strncmp(buffer, "LED3ON", 6)){}
-		//else if(!strncmp(buffer, "LED1OFF", 6) || !strncmp(buffer, "LED2OFF", 6) || !strncmp(buffer, "LED3OFF", 6)){}
-
-			printf("%s\n",buffer);
-
-			//printf("******\n");
-
-
-			/*if(count == 1){
-				log.time = buffer;
-			}
-			else if(count == 2){
-				log.switchStatus = buffer;
-			}
-			else if(count == 3){
-				log.buttonStatus = buffer;
-			}
-			else if(count == 4){
-				log.LEDsStatus = buffer;
-			}
-			else if(count == 5){
-				log.adcValue = buffer;
-			}
-			else if(count == 6){
-				log.event = buffer;
-			}
-			
-			sem_wait(&sem);
-				allLogs[i] = log;
-				allLogs[i+1] = NULL;
-			sem_post(&sem);*/
+		if (n<0)
+		{
+			error("recv");
+		}
+		printf("This was received: %s\n",buffer);
 	}
 }
-
-/*logList *sortLogEntry(char* buffer){
-	
-	logList localLogs[1000];
-	
-	sem_wait(&sem);
-		memcpy(localLogs,allLogs, sizeof(logList));
-	sem_post(&sem);
-	
-	
-	 int i, j;
-   for (i = 0; i < n-1; i++)      
-   {
-		for (j = 0; j < n-i-1; j++) {
-		  if (arr[j] > arr[j+1])
-            swap(&arr[j], &arr[j+1]);
-		}    
-   }
-     
-	
-	return log;
-}*/
