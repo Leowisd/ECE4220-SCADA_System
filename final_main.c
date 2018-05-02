@@ -62,6 +62,7 @@ int boolval = 1;			// for a socket option
 socklen_t fromlen;
 struct sockaddr_in server;
 struct sockaddr_in addr;
+struct sockaddr_in from; // From the client
 
 //IP arguments
 struct ifreq ifr;
@@ -261,27 +262,27 @@ void* periodicUpdate(void *arg)
             //get status info
             bzero(buffer2, MSG_SIZE);
             getTime();
-            n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);
+            n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&from, fromlen);
             bzero(buffer2, MSG_SIZE);
             getSwitch();
-            n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);            
+            n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&from, fromlen);            
             bzero(buffer2, MSG_SIZE);
             getButton();
-            n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);
+            n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&from, fromlen);
             bzero(buffer2, MSG_SIZE);
             getLED();
-            n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);
+            n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&from, fromlen);
             bzero(buffer2, MSG_SIZE);
             //getADCValue();
             getADCValueUSB();
-            n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);
+            n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&from, fromlen);
 
             //if some events happend
             if (ADCValue == 0)
             {
                 bzero(buffer2, MSG_SIZE);
                 strcpy(buffer2, "Event: No Power!");
-                n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);
+                n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&from, fromlen);
                 digitalWrite(A, 0);
                 digitalWrite(B, 0);
                 digitalWrite(C, 0);
@@ -291,7 +292,7 @@ void* periodicUpdate(void *arg)
             {
                 bzero(buffer2, MSG_SIZE);
                 strcpy(buffer2, "Event: Overload!");
-                n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);
+                n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&from, fromlen);
                 digitalWrite(A, 1);
                 digitalWrite(B, 0);
                 digitalWrite(C, 0);
@@ -302,7 +303,7 @@ void* periodicUpdate(void *arg)
             {
                 bzero(buffer2, MSG_SIZE);
                 strcpy(buffer2, "Event: Switch 1 Change!");
-                n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);
+                n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&from, fromlen);
                 preSwitch1 = switch1;          
                 digitalWrite(A, 0);
                 digitalWrite(B, 1);
@@ -315,7 +316,7 @@ void* periodicUpdate(void *arg)
             {
                 bzero(buffer2, MSG_SIZE);
                 strcpy(buffer2, "Event: Switch 2 Change!");
-                n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);
+                n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&from, fromlen);
                 preSwitch2 = switch2;   
                 digitalWrite(A, 1);
                 digitalWrite(B, 1);
@@ -328,7 +329,7 @@ void* periodicUpdate(void *arg)
             {
                 bzero(buffer2, MSG_SIZE);
                 strcpy(buffer2, "Event: Button 1 Pressed!");
-                n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);          
+                n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&from, fromlen);          
                 buttonOneFlag = 0;
                 digitalWrite(A, 0);
                 digitalWrite(B, 0);
@@ -341,7 +342,7 @@ void* periodicUpdate(void *arg)
             {
                 bzero(buffer2, MSG_SIZE);
                 strcpy(buffer2, "Event: Button 2 Pressed!");
-                n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);          
+                n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&from, fromlen);          
                 buttonTwoFlag = 0;
                 digitalWrite(A, 1);
                 digitalWrite(B, 0);
@@ -354,7 +355,7 @@ void* periodicUpdate(void *arg)
             {
                 bzero(buffer2, MSG_SIZE);
                 strcpy(buffer2, "Event: LED 1 Change!");
-                n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);          
+                n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&from, fromlen);          
                 preLED1 = LED1;
                 digitalWrite(A, 0);
                 digitalWrite(B, 1);
@@ -367,7 +368,7 @@ void* periodicUpdate(void *arg)
             {
                 bzero(buffer2, MSG_SIZE);
                 strcpy(buffer2, "Event: LED 2 Change!\n");
-                n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);          
+                n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&from, fromlen);          
                 preLED2 = LED2;
                 digitalWrite(A, 1);
                 digitalWrite(B, 1);
@@ -380,7 +381,7 @@ void* periodicUpdate(void *arg)
             {
                 bzero(buffer2, MSG_SIZE);
                 strcpy(buffer2, "Event: LED 3 Change!");
-                n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);          
+                n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&from, fromlen);          
                 preLED3 = LED3;
                 digitalWrite(A, 0);
                 digitalWrite(B, 0);
@@ -390,7 +391,7 @@ void* periodicUpdate(void *arg)
             }
 	         bzero(buffer2, MSG_SIZE);
              strcpy(buffer2, "RTU 1 finished\n");
-             n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&addr, fromlen);          
+             n = sendto(sock, buffer2, MSG_SIZE, 0, ( struct sockaddr*)&from, fromlen);          
             /**********************************/
 
             sleep(1);
@@ -401,17 +402,66 @@ void* periodicUpdate(void *arg)
 
 int main(int argc, char *argv[])
 {
-    /******check if input has port number******/
-    if (argc < 2)
+
+    /******Scoket Connection******/
+    int r;
+    int port_number;
+
+    // set the port number
+    if (argc == 2)
     {
-	    printf("usage: %s port\n", argv[0]);
-        exit(0);
+        port_number = atoi(argv[1]);
+    } else 
+    {
+        port_number = 2000; // set default if not provided
     }
-    /******************************************/
 
+	// Creates socket. Connectionless.
+    sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock < 0)
+    {
+        error("Opening socket");
+	}
 
- 
-    /******Setup******/
+    length = sizeof(server);                // length of structure
+    bzero(&server,length);                  // sets all values to zero. memset() could be used
+    server.sin_family = AF_INET;            // symbol constant for Internet domain
+    server.sin_port = htons(port_number);	// port number
+    server.sin_addr.s_addr = INADDR_ANY;	// IP address of the machine on which the server is running
+
+    // gets the host name and the IP
+	bzero(&ifr, sizeof(ifr));	// Set all values to zero
+    ifr.ifr_addr.sa_family = AF_INET;	// Type of address to retrieve - IPv4 IP address
+    strncpy((char* )&ifr.ifr_name , eth0 , IFNAMSIZ-1);		// Copy the interface name in the ifreq structure
+	// Get IP address
+    if (ioctl(sock,SIOCGIFADDR,&ifr) == -1)
+    {
+		error("Cannot get IP address");
+		close(sock);
+		exit(0);
+	}
+	// Converts the internet host address in network byte order to a string in IPv4 dotted-decimal notation
+    strcpy(ip,inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr )->sin_addr));
+    strcpy(ipHolder,ip);
+    int current_board_number = parseIP(ipHolder);
+    printf("IP : %s\n",ip);
+    printf("Board Number : %d\n",current_board_number);
+
+    // binds the socket to the address of the host and the port number
+    if (bind(sock, (struct sockaddr *)&server, length) < 0)
+    {
+        error("binding");
+	}
+    // set broadcast option
+    if (setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &boolval, sizeof(boolval)) < 0)
+   	{
+        printf("error setting socket options\n");
+        exit(-1);
+   	}
+    fromlen = sizeof(struct sockaddr_in);	// size of structure
+    /***************************/
+
+     /******Setup******/
     if (wiringPiSetup()<0)
     {
         printf("wiringPi Setup failed!\n");
@@ -419,13 +469,12 @@ int main(int argc, char *argv[])
     }
 
     // Configure the SPI
-	if(wiringPiSPISetup(SPI_CHANNEL, SPI_SPEED) < 0) {
+	if(wiringPiSPISetup(SPI_CHANNEL, SPI_SPEED) < 0) 
+    {
 		printf("wiringPiSPISetup failed\n");
 		return -1 ;
 	}
     /**************************/
-
-
 
     /******WiringPi Initialization******/
     pinMode(S1, INPUT); //awitch 1 as input
@@ -481,73 +530,23 @@ int main(int argc, char *argv[])
     }
     /****************************/
 
-    /******Socket Connection******/
-    sock = socket(AF_INET, SOCK_DGRAM, 0); // Creates socket. Connectionless.
-    if (sock < 0)
-	    error("Opening socket");
-
-    length = sizeof(server);			// length of structure
-    bzero(&server,length);			// sets all values to zero. memset() could be used
-    server.sin_family = AF_INET;		// symbol constant for Internet domain
-    server.sin_addr.s_addr = INADDR_ANY;		// IP address of the machine on which
-										    // the server is running
-    server.sin_port = htons(atoi(argv[1]));	// port number
-
-    //gets the host name and the IP
-    bzero(&ifr, sizeof(ifr));	// Set all values to zero
-    ifr.ifr_addr.sa_family = AF_INET;	// Type of address to retrieve - IPv4 IP address
-    strncpy((char* )&ifr.ifr_name , eth0 , IFNAMSIZ-1);		// Copy the interface name in the ifreq structure
-	// Get IP address
-    if (ioctl(sock,SIOCGIFADDR,&ifr) == -1) {
-		error("Cannot get IP address");
-		close(sock);
-		exit(0);
-	}
-	// Converts the internet host address in network byte order to a string in IPv4 dotted-decimal notation
-    strcpy(ip,inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr )->sin_addr));
-    strcpy(ipHolder,ip);
-    int current_board_number = parseIP(ipHolder);
-    printf("IP : %s\n",ip);
-    printf("Board Number : %d\n",current_board_number);
-
-
-    // binds the socket to the address of the host and the port number
-    if (bind(sock, (struct sockaddr *)&server, length) < 0)
-        error("binding");
-
-    // change socket permissions to allow broadcast
-    if (setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &boolval, sizeof(boolval)) < 0)
-    {
-        printf("error setting socket options\n");
-   		exit(-1);
-   	}
-
-    fromlen = sizeof(struct sockaddr_in);	// size of structure
-    /*****************************/
-
-
     /******Thread to send current RTU logs and read button from kernal******/
     pthread_t ptr,ptr2;
     pthread_create(&ptr, NULL, periodicUpdate, NULL);
     pthread_create(&ptr2, NULL, readFromKernal, NULL);
     /**********************************************************************/
 
-
-
-    /******Receive commands******/
-    while(1)
+    while (1)
     {
-        bzero(buffer,MSG_SIZE);		// sets all values to zero. memset() could be used
-
-	    // receive from a client
-	    n = recvfrom(sock, buffer, MSG_SIZE, 0, (struct sockaddr *)&addr, &fromlen);
+        // receive from client
+    	bzero(&buffer,MSG_SIZE); // clear the buffer to NULL
+        n = recvfrom(sock, buffer, MSG_SIZE, 0, (struct sockaddr *)&from, &fromlen);
         if (n < 0)
-    	    error("recvfrom"); 
+            error("recvfrom");
 
-        printf("Received a command. It says: %s", buffer);
-
-        // if the buffer from a cilent is WHOIS
-        if(strcmp(buffer, "LED1ON\n") == 0)
+        printf("Received a command. It says: %s\n",buffer);
+ 
+        if(strcmp(buffer, "LED1ON") == 0)
         {
             digitalWrite(RED, 1);
             sem_wait(&my_sem);
@@ -555,7 +554,7 @@ int main(int argc, char *argv[])
             sem_post(&my_sem);
         }
 
-        if(strcmp(buffer, "LED2ON\n") == 0)
+        if(strcmp(buffer, "LED2ON") == 0)
         {
             digitalWrite(YELLOW, 1);
             sem_wait(&my_sem);
@@ -563,7 +562,7 @@ int main(int argc, char *argv[])
             sem_post(&my_sem);
         }
 
-        if(strcmp(buffer, "LED3ON\n") == 0)
+        if(strcmp(buffer, "LED3ON") == 0)
         {
             digitalWrite(GREEN, 1);
             sem_wait(&my_sem);
@@ -571,7 +570,7 @@ int main(int argc, char *argv[])
             sem_post(&my_sem);
         }
 
-        if(strcmp(buffer, "LED1OFF\n") == 0)
+        if(strcmp(buffer, "LED1OFF") == 0)
         {
             digitalWrite(RED, 0);
             sem_wait(&my_sem);
@@ -579,7 +578,7 @@ int main(int argc, char *argv[])
             sem_post(&my_sem);
         }
 
-        if(strcmp(buffer, "LED2OFF\n") == 0)
+        if(strcmp(buffer, "LED2OFF") == 0)
         {
             digitalWrite(YELLOW, 0);
             sem_wait(&my_sem);
@@ -587,15 +586,15 @@ int main(int argc, char *argv[])
             sem_post(&my_sem);
         }
 
-        if(strcmp(buffer, "LED3OFF\n") == 0)
+        if(strcmp(buffer, "LED3OFF") == 0)
         {
             digitalWrite(GREEN, 0);
             sem_wait(&my_sem);
             LED3 = 0;
             sem_post(&my_sem);
-        }
+        } 
+
     }
-    /****************************/
 
     return 0;
 }
